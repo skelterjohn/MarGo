@@ -12,10 +12,10 @@ import (
 func init() {
 	http.HandleFunc("/declarations", func(rw http.ResponseWriter, req *http.Request) {
 		m := map[string]interface{}{}
-		decls := []map[string]string{}
+		decls := []map[string]interface{}{}
 		fset := token.NewFileSet()
 		var err error
-		fn := req.FormValue("path")
+		fn := req.FormValue("filename")
 		var src interface{} = req.FormValue("src")
 		if src.(string) == "" {
 			src, err = os.Open(fn)
@@ -31,22 +31,26 @@ func init() {
 					if p := fset.Position(d.Pos()); p.IsValid() {
 						switch n := d.(type) {
 						case *ast.FuncDecl:
-							decls = append(decls, map[string]string{
+							decls = append(decls, map[string]interface{}{
 								"name":     n.Name.Name,
 								"kind":     "func",
-								"location": p.String(),
 								"doc":      n.Doc.Text(),
+								"filename": p.Filename,
+								"line":     p.Line,
+								"column":   p.Column,
 							})
 						case *ast.GenDecl:
 							for _, spec := range n.Specs {
 								switch gn := spec.(type) {
 								case *ast.TypeSpec:
 									if vp := fset.Position(gn.Pos()); vp.IsValid() {
-										decls = append(decls, map[string]string{
+										decls = append(decls, map[string]interface{}{
 											"name":     gn.Name.Name,
 											"kind":     "type",
-											"location": vp.String(),
 											"doc":      gn.Doc.Text(),
+											"filename": vp.Filename,
+											"line":     vp.Line,
+											"column":   vp.Column,
 										})
 									}
 								case *ast.ValueSpec:
@@ -59,17 +63,19 @@ func init() {
 											case ast.Fun:
 												kind = "func"
 											case ast.Con:
-												kind = "constant"
+												kind = "const"
 											case ast.Var:
-												kind = "variable"
+												kind = "var"
 											default:
 												continue
 											}
-											decls = append(decls, map[string]string{
+											decls = append(decls, map[string]interface{}{
 												"name":     v.Name,
 												"kind":     kind,
-												"location": vp.String(),
 												"doc":      "",
+												"filename": vp.Filename,
+												"line":     vp.Line,
+												"column":   vp.Column,
 											})
 										}
 									}
