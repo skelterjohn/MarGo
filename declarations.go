@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"go/ast"
 	"go/parser"
+	"go/printer"
 	"go/token"
 	"net/http"
 	"os"
+	"fmt"
 )
 
 func init() {
@@ -31,14 +34,28 @@ func init() {
 					if p := fset.Position(d.Pos()); p.IsValid() {
 						switch n := d.(type) {
 						case *ast.FuncDecl:
-							decls = append(decls, map[string]interface{}{
+							decl := map[string]interface{}{
 								"name":     n.Name.Name,
 								"kind":     "func",
 								"doc":      n.Doc.Text(),
 								"filename": p.Filename,
 								"line":     p.Line,
 								"column":   p.Column,
-							})
+							}
+							if n.Recv != nil {
+								recvFields := n.Recv.List
+								if len(recvFields) == 0 {
+									break
+								}
+								typ := recvFields[0].Type
+								buf := bytes.NewBuffer([]byte("("))
+								if printer.Fprint(buf, fset, typ) != nil {
+									break
+								}
+								fmt.Fprintf(buf, ").%s", n.Name.Name)
+								decl["name"] = buf.String()
+							}
+							decls = append(decls, decl)
 						case *ast.GenDecl:
 							for _, spec := range n.Specs {
 								switch gn := spec.(type) {
